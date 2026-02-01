@@ -26,23 +26,30 @@ class RacingTimer:
         self.start_time = 0
         self.elapsed_time = 0
         self.lap_times = deque(maxlen=5)
-        self.bind_config = {"type": "keyboard", "value": "f5"}
-        
+        self.bind_config = {"type": "keyboard", "value": "x"}
         self.load_config()
-        
-        # Presets
-        self.preset_duration = None  # None implies standard count-up timer
+        self.preset_duration = None 
         self.presets = {
-            "Track 1": 105  # 1 minute 45 seconds
+            "Tier 1": {
+                "Time Assessment": 105.0
+            },
+            "Tier 2": {
+                "Time Assessment": 103.0,
+                "Jump Assessment": 145.0,
+                "Precision Assessment": 58.0
+            },
+            "Tier 3": {
+                "Time Assessment": 169.0,
+                "Jump Assessment": 105.0,
+                "Precision Assessment": 96.0
+            }
         }
 
         self.setup_ui()
         
-        # Input Hooks
         self.hook_active = False
         self.start_listening()
         
-        # Timer Loop
         self.update_timer()
 
     def load_config(self):
@@ -84,22 +91,30 @@ class RacingTimer:
         
         self.menu = tk.Menu(self.root, tearoff=0)
         
-        # Presets Submenu
         self.presets_menu = tk.Menu(self.menu, tearoff=0)
         self.menu.add_cascade(label="Presets (Countdown)", menu=self.presets_menu)
         self.presets_menu.add_command(label="None (Count Up)", command=self.disable_preset)
         self.presets_menu.add_separator()
-        for name, duration in self.presets.items():
-            self.presets_menu.add_command(
-                label=f"{name} ({self.format_time(duration, force_positive=True)})", 
-                command=lambda d=duration: self.enable_preset(d)
-            )
+        
+        self.add_presets_to_menu(self.presets_menu, self.presets)
 
         self.menu.add_command(label="Change Hotkey", command=self.change_bind_mode)
         self.menu.add_command(label="Reset Laps", command=self.reset_laps)
         self.menu.add_separator()
         self.menu.add_command(label="Exit", command=self.close_app)
         self.root.bind("<Button-3>", self.show_menu)
+
+    def add_presets_to_menu(self, parent_menu, presets):
+        for name, data in presets.items():
+            if isinstance(data, dict):
+                sub_menu = tk.Menu(parent_menu, tearoff=0)
+                parent_menu.add_cascade(label=name, menu=sub_menu)
+                self.add_presets_to_menu(sub_menu, data)
+            else:
+                parent_menu.add_command(
+                    label=f"{name} ({self.format_time(data, force_positive=True)})", 
+                    command=lambda d=data: self.enable_preset(d)
+                )
         
     def get_bind_text(self):
         t = self.bind_config['type']
@@ -148,13 +163,9 @@ class RacingTimer:
             self.running = False
             self.beep(start=False)
             self.time_label.config(fg="#ff5555")
-            
-            # If in countdown mode, we still record the elapsed time (how long the run took)
-            # which is final_time.
             self.lap_times.appendleft(self.format_time(final_time))
             self.update_laps_display()
             
-            # If preset was active, ensure the final display shows the remaining time where it stopped
             if self.preset_duration is not None:
                 remaining = self.preset_duration - final_time
                 self.time_label.config(text=self.format_time(remaining))
@@ -178,11 +189,9 @@ class RacingTimer:
         if self.running:
             self.elapsed_time = time.time() - self.start_time
             if self.preset_duration is not None:
-                # Countdown Mode
                 remaining = self.preset_duration - self.elapsed_time
                 self.time_label.config(text=self.format_time(remaining))
             else:
-                # Standard Mode
                 self.time_label.config(text=self.format_time(self.elapsed_time))
         self.root.after(10, self.update_timer)
 
