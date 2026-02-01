@@ -1,1 +1,1 @@
-{"type": "keyboard", "value": "\u00b2"}
+{"bind": {"type": "keyboard", "value": "x"}, "ui": {"opacity": 0.8, "size": "250x200", "text_color": "#00ffff"}}

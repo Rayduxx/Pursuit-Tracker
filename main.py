@@ -27,7 +27,20 @@ class RacingTimer:
         self.elapsed_time = 0
         self.lap_times = deque(maxlen=5)
         self.bind_config = {"type": "keyboard", "value": "x"}
+        self.ui_config = {
+            "opacity": 0.8, 
+            "size": "250x200",
+            "text_color": "#00ff00"
+        }
         self.load_config()
+        self.bg_color = "#1e1e1e"
+        self.text_color = self.ui_config.get("text_color", "#00ff00")
+        self.secondary_color = "#ffffff"
+        
+        self.root.wm_attributes("-alpha", self.ui_config.get("opacity", 0.8))
+        self.root.geometry(self.ui_config.get("size", "250x200") + "+10+10")
+        self.root.configure(bg=self.bg_color)
+        
         self.preset_duration = None 
         self.presets = {
             "Tier 1": {
@@ -56,14 +69,19 @@ class RacingTimer:
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, 'r') as f:
-                    self.bind_config = json.load(f)
+                    data = json.load(f)
+                    self.bind_config = data.get('bind', self.bind_config)
+                    self.ui_config = data.get('ui', self.ui_config)
             except:
                 pass
 
     def save_config(self):
         try:
             with open(CONFIG_FILE, 'w') as f:
-                json.dump(self.bind_config, f)
+                json.dump({
+                    'bind': self.bind_config,
+                    'ui': self.ui_config
+                }, f)
         except:
             pass
 
@@ -98,6 +116,23 @@ class RacingTimer:
         
         self.add_presets_to_menu(self.presets_menu, self.presets)
 
+        self.ui_menu = tk.Menu(self.menu, tearoff=0)
+        self.menu.add_cascade(label="Customize UI", menu=self.ui_menu)
+        
+        self.opacity_menu = tk.Menu(self.ui_menu, tearoff=0)
+        self.ui_menu.add_cascade(label="Opacity", menu=self.opacity_menu)
+        for val, label in [(0.4, "40%"), (0.6, "60%"), (0.8, "80%"), (1.0, "100%")]:
+            self.opacity_menu.add_command(label=label, command=lambda v=val: self.set_opacity(v))
+            
+        self.scale_menu = tk.Menu(self.ui_menu, tearoff=0)
+        self.ui_menu.add_cascade(label="Window Size", menu=self.scale_menu)
+        self.scale_menu.add_command(label="Small (200x150)", command=lambda: self.set_window_size("200x150"))
+        self.scale_menu.add_command(label="Standard (250x200)", command=lambda: self.set_window_size("250x200"))
+        self.scale_menu.add_command(label="Large (300x250)", command=lambda: self.set_window_size("300x250"))
+        
+        self.ui_menu.add_command(label="Change Text Color", command=self.ask_color)
+
+        self.menu.add_separator()
         self.menu.add_command(label="Change Hotkey", command=self.change_bind_mode)
         self.menu.add_command(label="Reset Laps", command=self.reset_laps)
         self.menu.add_separator()
@@ -248,6 +283,33 @@ class RacingTimer:
         finally:
             keyboard.unhook_all()
             mouse.unhook_all()
+
+    def set_opacity(self, value):
+        self.ui_config['opacity'] = value
+        self.root.wm_attributes("-alpha", value)
+        self.save_config()
+
+    def set_window_size(self, size_str):
+        self.ui_config['size'] = size_str
+        self.root.geometry(size_str)
+        self.save_config()
+
+    def change_text_color(self):
+        colors = ["#00ff00", "#ff0000", "#0000ff", "#ffff00", "#00ffff", "#ff00ff", "#ffffff"]
+        current = self.ui_config.get('text_color', "#00ff00")
+        try:
+            next_index = (colors.index(current) + 1) % len(colors)
+        except ValueError:
+            next_index = 0
+        new_color = colors[next_index]
+        
+        self.ui_config['text_color'] = new_color
+        self.text_color = new_color
+        self.time_label.config(fg=new_color)
+        self.save_config()
+
+    def ask_color(self):
+        self.change_text_color()
             
     def finish_binding(self):
         self.instr.config(text=self.get_bind_text(), fg="#888888")
